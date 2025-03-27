@@ -21,21 +21,79 @@
  *                                                                           *
  * ------------------------------------------------------------------------- */
 /**
- * @file    all_continum_dynamics.h
+ * @file 	stress_diffusion.h
+ * @brief 	Here, we define the ck_version for stress diffusion. 
+ * @details Refer to Zhu et al(2023).
+ * @author	Shuang Li, Xiangyu Hu
  */
 
+#ifndef SEGREGATION_DYNAMICS_CK_H
+#define SEGREGATION_DYNAMICS_CK_H
 
-#pragma once
-
+#include "base_continuum_dynamics.h"
+#include "constraint_dynamics.h"
+#include "fluid_integration.hpp"
+#include "general_continuum.h"
+#include "general_continuum.hpp"
 #include "continuum_integration_1st_ck.h"
 #include "continuum_integration_1st_ck.hpp"
-#include "continuum_integration_2nd_ck.h"
-#include "continuum_integration_2nd_ck.hpp"
-#include "continuum_dynamics_variable_ck.h"
-#include "continuum_dynamics_variable_ck.hpp"
-#include "stress_diffusion_ck.h"
-#include "stress_diffusion_ck.hpp"
-#include "initilization_dynamics_ck.h"
-#include "initilization_dynamics_ck.hpp"
-#include "segregation_dynamics_ck.h"
-#include "segregation_dynamics_ck.hpp"
+#include "base_general_dynamics.h"
+namespace SPH
+{
+namespace continuum_dynamics
+{
+
+class BaseSegregationParametersCK
+{
+  public:
+    BaseSegregationParametersCK(BaseParticles *particles){};
+    virtual ~BaseSegregationParametersCK() {};
+
+    class UpdateKernel
+    {
+      public:
+        template <class ExecutionPolicy, class EncloserType>
+        UpdateKernel(const ExecutionPolicy &ex_policy, EncloserType &encloser);
+        void update(size_t index_i, Real dt = 0.0)
+        {
+        };
+
+      protected:
+
+    };
+
+  protected:
+
+};
+
+
+
+
+class SegregationParametersCK : public LocalDynamics, public BaseSegregationParametersCK
+{
+  public:
+    SegregationParametersCK(SPHBody &sph_body);
+    virtual ~SegregationParametersCK() {};
+
+    class UpdateKernel : public BaseSegregationParametersCK::UpdateKernel
+    {
+      public:
+        template <class ExecutionPolicy, class EncloserType>
+        UpdateKernel(const ExecutionPolicy &ex_policy, EncloserType &encloser);
+        void update(size_t index_i, Real dt = 0.0)
+        {
+            diffusivity_[index_i] = 1.01e-3;
+        };
+
+      protected:
+        Real *diffusivity_, *segregation_rate_;
+    };
+
+  protected:
+      DiscreteVariable<Real> *dv_diffusivity_, *dv_segregation_rate_;
+};
+
+
+} // namespace continuum_dynamics
+} // namespace SPH
+#endif // SEGREGATION_DYNAMICS_CK_H

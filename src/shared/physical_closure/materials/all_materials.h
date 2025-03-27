@@ -39,3 +39,5 @@
 #include "general_continuum.hpp"
 #include "inelastic_solid.h"
 #include "weakly_compressible_fluid.h"
+
+#include "diffusion_segregation_reaction.h"

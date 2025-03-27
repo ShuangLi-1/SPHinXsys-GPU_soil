@@ -97,5 +97,35 @@ class UniformDistribution : public ReturnFunction<DataType>
   protected:
     DataType constant_value_;
 };
+
+template <typename DataType>
+class ShearBoxDistribution : public ReturnFunction<DataType>
+{
+  public:
+    ShearBoxDistribution(BaseParticles *particles, DataType constant_value)
+        : constant_value_(constant_value) {};
+
+    class ComputingKernel
+    {
+      public:
+        template <class ExecutionPolicy, class EncloserType>
+        ComputingKernel(const ExecutionPolicy &ex_policy, EncloserType &encloser)
+            : constant_value_(encloser.constant_value_){};
+
+        DataType operator()(const Vecd &position) 
+        { 
+        if(position[1]>0.05)
+          return 1.0; 
+        else
+          return 0.0;
+        };
+
+      protected:
+        DataType constant_value_;
+    };
+
+  protected:
+    DataType constant_value_;
+};
 } // namespace SPH
 #endif // GENERAL_INITIAL_CONDITION_H

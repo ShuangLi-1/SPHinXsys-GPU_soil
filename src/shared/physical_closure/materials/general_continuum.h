@@ -109,6 +109,9 @@ class PlasticContinuum : public GeneralContinuum
         alpha_phi_ = getDPConstantsA(friction_angle);
         k_c_ = getDPConstantsK(cohesion, friction_angle);
     };
+    explicit PlasticContinuum(ConstructArgs<Real, Real, Real, Real, Real, Real, Real> args)
+    : PlasticContinuum(std::get<0>(args), std::get<1>(args), std::get<2>(args), std::get<3>(args), 
+    std::get<4>(args), std::get<5>(args), std::get<6>(args)) {};
     virtual ~PlasticContinuum(){};
 
     Real getDPConstantsA(Real friction_angle);

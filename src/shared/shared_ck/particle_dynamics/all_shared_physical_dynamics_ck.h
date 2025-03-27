@@ -42,4 +42,8 @@
 #include "simple_algorithms_ck.h"
 #include "all_continum_dynamics.h"
 
+
+//Segregation Dynamics
+#include "segregation_diffusion_ck.h"
+#include "segregation_diffusion_ck.hpp"
 #endif // ALL_SHARED_PHYSICAL_DYNAMICS_CK_H
