@@ -72,6 +72,32 @@ class NormalFromBodyShapeCK : public LocalDynamics
     DiscreteVariable<Real> *dv_phi_, *dv_phi0_;
 };
 
+class NormalFromParticlesCK : public LocalDynamics, public DataDelegateInner
+{
+  public:
+    explicit NormalFromParticlesCK(BaseInnerRelation &inner_relation);
+    virtual ~NormalFromParticlesCK(){};
+  class InteractKernel : public HostKernel
+  {
+    public:
+      template <class ExecutionPolicy>
+      InteractKernel(const ExecutionPolicy &ex_policy,
+                    NormalFromParticlesCK &encloser);
+      void interact(size_t index_i, Real dt = 0.0);
+
+    protected:
+      Shape *initial_shape_;
+      Vecd *pos_, *n_, *n0_;
+      Real *phi_, *phi0_, *Vol_;
+  };
+
+
+  protected:
+    Shape *initial_shape_;
+    DiscreteVariable<Vecd> *dv_pos_, *dv_n_, *dv_n0_;
+    DiscreteVariable<Real> *dv_phi_, *dv_phi0_, *dv_Vol_;
+};
+
 class SurfaceIndicationFromBodyShape : public LocalDynamics
 {
   public:

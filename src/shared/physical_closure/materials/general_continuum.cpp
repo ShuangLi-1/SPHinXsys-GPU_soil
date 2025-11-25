@@ -38,6 +38,22 @@ Real PlasticContinuum::getDPConstantsK(Real cohesion, Real friction_angle)
     return 3.0 * cohesion / sqrt(9.0 + 12.0 * tan(friction_angle) * tan(friction_angle));
 }
 //=================================================================================================//
+Real PlasticContinuum::getDPConstantsA_WithMiu(Real miu)
+{
+    Real alpha_i = miu / sqrt(9.0 + 12.0 * miu * miu);
+    return alpha_i;
+}
+//=================================================================================================//
+Real PlasticContinuum::getDPConstantsK_WithMiu(Real miu)
+{
+    return 3.0 * c_ / sqrt(9.0 + 12.0 * miu * miu);
+}
+//=================================================================================================//
+Real PlasticContinuum::getDPConstantsK_WithMiu(Real cohesion, Real miu)
+{
+    return 3.0 * cohesion / sqrt(9.0 + 12.0 * miu * miu);
+}
+//=================================================================================================//
 Mat3d PlasticContinuum::ConstitutiveRelation(Mat3d &velocity_gradient, Mat3d &stress_tensor)
 {
     Mat3d strain_rate = 0.5 * (velocity_gradient + velocity_gradient.transpose());
@@ -75,6 +91,91 @@ Mat3d PlasticContinuum::ReturnMapping(Mat3d &stress_tensor)
     }
     return stress_tensor;
 }
+//=================================================================================================//
+Mat3d PlasticContinuum::ConstitutiveRelation_withMiuI(Mat3d &velocity_gradient, Mat3d &stress_tensor, Real alpha_phi_i, Real k_c_i)
+{
+    Mat3d strain_rate = 0.5 * (velocity_gradient + velocity_gradient.transpose());
+    Mat3d spin_rate = 0.5 * (velocity_gradient - velocity_gradient.transpose());
+    Mat3d deviatoric_strain_rate = strain_rate - (1.0 / stress_dimension_) * strain_rate.trace() * Mat3d::Identity();
+    Mat3d stress_rate_elastic = 2.0 * G_ * deviatoric_strain_rate + K_ * strain_rate.trace() * Mat3d::Identity() + stress_tensor * (spin_rate.transpose()) + spin_rate * stress_tensor;
+    Mat3d deviatoric_stress_tensor = stress_tensor - (1.0 / stress_dimension_) * stress_tensor.trace() * Mat3d::Identity();
+    Real stress_tensor_J2 = 0.5 * (deviatoric_stress_tensor.cwiseProduct(deviatoric_stress_tensor.transpose())).sum();
+    Real f = sqrt(stress_tensor_J2) + alpha_phi_i * stress_tensor.trace() - k_c_i;
+    Real lambda_dot_ = 0;
+    Mat3d g = Mat3d::Zero();
+    if (f >= TinyReal)
+    {
+        Real deviatoric_stress_times_strain_rate = (deviatoric_stress_tensor.cwiseProduct(strain_rate)).sum();
+        // non-associate flow rule
+        lambda_dot_ = (3.0 * alpha_phi_i * K_ * strain_rate.trace() + (G_ / sqrt(stress_tensor_J2)) * deviatoric_stress_times_strain_rate) / (9.0 * alpha_phi_i * K_ * getDPConstantsA(psi_) + G_);
+        g = lambda_dot_ * (3.0 * K_ * getDPConstantsA(psi_) * Mat3d::Identity() + G_ * deviatoric_stress_tensor / (sqrt(stress_tensor_J2)));
+    }
+    Mat3d stress_rate_temp = stress_rate_elastic - g;
+    return stress_rate_temp;
+}
+//=================================================================================================//
+Mat3d PlasticContinuum::ReturnMapping_withMiuI(Mat3d &stress_tensor, Real alpha_phi_i, Real k_c_i)
+{
+    Real stress_tensor_I1 = stress_tensor.trace();
+    if (-alpha_phi_i * stress_tensor_I1 + k_c_i < 0)
+        stress_tensor -= (1.0 / stress_dimension_) * (stress_tensor_I1 - k_c_i / alpha_phi_i) * Mat3d::Identity();
+    stress_tensor_I1 = stress_tensor.trace();
+    Mat3d deviatoric_stress_tensor = stress_tensor - (1.0 / stress_dimension_) * stress_tensor.trace() * Mat3d::Identity();
+    Real stress_tensor_J2 = 0.5 * (deviatoric_stress_tensor.cwiseProduct(deviatoric_stress_tensor.transpose())).sum();
+    if (-alpha_phi_i * stress_tensor_I1 + k_c_i < sqrt(stress_tensor_J2))
+    {
+        Real r = (-alpha_phi_i * stress_tensor_I1 + k_c_i) / (sqrt(stress_tensor_J2) + TinyReal);
+        stress_tensor = r * deviatoric_stress_tensor + (1.0 / stress_dimension_) * stress_tensor_I1 * Mat3d::Identity();
+    }
+    return stress_tensor;
+}
+//=================================================================================================//
+Mat3d PlasticContinuum::NEW_ReturnMapping_withMiuI(Mat3d &stress_tensor, Real alpha_phi_i, Real k_c_i)
+{
+   const Real Tiny   = std::max(TinyReal, (Real)1e-12);
+    const Real q_eps  = 1e-12; // 依据你的应力量级可调大到1e-9等
+
+    // 基本分解
+    Real stress_tensor_I1 = stress_tensor.trace();
+    const Real inv_dim = (Real)1.0 / (Real)stress_dimension_;
+    Real p = inv_dim * stress_tensor_I1;                 // 压力（假定压缩为正；若相反，不影响下面k_eff逻辑本质）
+
+    // 1) 张拉侧关掉黏聚：k_eff 代替 k_c_i（最小改动）
+    Real k_eff = (p > 0.0) ? k_c_i : (Real)0.0;
+
+    // —— 原有体积回弹判据，改用 k_eff —— 
+    if (-alpha_phi_i * stress_tensor_I1 + k_eff < 0.0)
+        stress_tensor -= inv_dim * (stress_tensor_I1 - k_eff / std::max(alpha_phi_i, (Real)1e-12)) * Mat3d::Identity();
+
+    // 重新分解
+    stress_tensor_I1 = stress_tensor.trace();
+    Mat3d deviatoric_stress_tensor = stress_tensor - inv_dim * stress_tensor_I1 * Mat3d::Identity();
+
+    // 2) q→0 保护：J2非负 + 近零时直接清偏应力
+    Real stress_tensor_J2 = 0.5 * (deviatoric_stress_tensor.cwiseProduct(deviatoric_stress_tensor.transpose())).sum();
+    stress_tensor_J2 = std::max(stress_tensor_J2, (Real)0.0);
+    Real q = std::sqrt(stress_tensor_J2);
+
+    if (q < q_eps) {
+        // 偏应力极小又可能被k触发时，直接清零偏应力，避免 r = (...) / q 数值爆炸
+        stress_tensor = inv_dim * stress_tensor_I1 * Mat3d::Identity();
+        return stress_tensor;
+    }
+
+    // —— 原有剪切回映射判据，改用 k_eff —— 
+    if (-alpha_phi_i * stress_tensor_I1 + k_eff < q)
+    {
+        Real numer = (-alpha_phi_i * stress_tensor_I1 + k_eff);
+        // 3) 夹持 r ∈ [0,1]
+        Real r = numer / (q + Tiny);
+        r = std::min((Real)1.0, std::max((Real)0.0, r));
+
+        stress_tensor = r * deviatoric_stress_tensor + inv_dim * stress_tensor_I1 * Mat3d::Identity();
+    }
+
+    return stress_tensor;
+}
+
 //=================================================================================================//
 Matd J2Plasticity::ConstitutiveRelationShearStress(Matd &velocity_gradient, Matd &shear_stress, Real &hardening_factor)
 {

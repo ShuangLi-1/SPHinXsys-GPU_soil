@@ -40,3 +40,6 @@
 #include "general_reduce.h"
 #include "kernel_correction.hpp"
 #include "particle_smoothing.hpp"
+
+/*Segregation*/
+#include "segregation_shape.hpp"

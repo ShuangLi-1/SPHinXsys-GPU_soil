@@ -14,7 +14,7 @@ Real DL = 0.5;                       /**< Tank length. */
 Real DH = 0.15;                      /**< Tank height. */
 Real LL = 0.2;                       /**< Soil column length. */
 Real LH = 0.1;                       /**< Soil column height. */
-Real particle_spacing_ref = LH / 50; /**< Initial reference particle spacing. */
+Real particle_spacing_ref = LH / 25; /**< Initial reference particle spacing. */
 Real BW = particle_spacing_ref * 4;  /**< Extending width for boundary conditions. */
 BoundingBox system_domain_bounds(Vec2d(-BW, -BW), Vec2d(DL + BW, DH + BW));
 //----------------------------------------------------------------------
@@ -50,10 +50,10 @@ class WallBoundary : public ComplexShape
 std::vector<Vecd> soil_shape{
     Vecd(0, 0), Vecd(0, LH), Vecd(LL, LH), Vecd(LL, 0), Vecd(0, 0)};
 
-class Soil : public MultiPolygonShape
+class SoilBlock : public MultiPolygonShape
 {
   public:
-    explicit Soil(const std::string &shape_name) : MultiPolygonShape(shape_name)
+    explicit SoilBlock(const std::string &shape_name) : MultiPolygonShape(shape_name)
     {
         multi_polygon_.addAPolygon(soil_shape, ShapeBooleanOps::add);
     }
@@ -71,7 +71,7 @@ int main(int ac, char *av[])
     //----------------------------------------------------------------------
     //	Creating bodies with corresponding materials and particles.
     //----------------------------------------------------------------------
-    RealBody soil_block(sph_system, makeShared<Soil>("GranularBody"));
+    RealBody soil_block(sph_system, makeShared<SoilBlock>("GranularBody"));
     soil_block.defineMaterial<PlasticContinuum>(rho0_s, c_s, Youngs_modulus, poisson, friction_angle);
     soil_block.generateParticles<BaseParticles, Lattice>();
 
@@ -113,6 +113,7 @@ int main(int ac, char *av[])
     body_states_recording.addToWrite<Real>(soil_block, "VerticalStress");
     SimpleDynamics<continuum_dynamics::AccDeviatoricPlasticStrain> accumulated_deviatoric_plastic_strain(soil_block);
     body_states_recording.addToWrite<Real>(soil_block, "AccDeviatoricPlasticStrain");
+    body_states_recording.addToWrite<Real>(soil_block, "BPVisoosity");
     RestartIO restart_io(sph_system);
     RegressionTestDynamicTimeWarping<ReducedQuantityRecording<TotalMechanicalEnergy>>
         write_mechanical_energy(soil_block, gravity);

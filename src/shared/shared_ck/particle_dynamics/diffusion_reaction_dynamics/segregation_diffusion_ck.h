@@ -39,6 +39,8 @@ class SegregationDiffusionRelaxationCK<DiffusionType, BaseInteractionType>
       protected:
         DataArray<Real> *diffusion_species_, *gradient_species_, *diffusion_dt_;
         DataArray<Real> *segregation_rate_;
+        DataArray<Vecd> *seg_n_;
+        DataArray<Real> *segregation_phi_, *segregation_test_;
         UnsignedInt number_of_species_;
     };
 
@@ -50,8 +52,15 @@ class SegregationDiffusionRelaxationCK<DiffusionType, BaseInteractionType>
     DiscreteVariableArray<Real> dv_gradient_species_array_;
     DiscreteVariableArray<Real> dv_diffusion_dt_array_;
 
+    /*Segregation parameters*/
     StdVec<std::string> segregation_rate_names_ = {"SegregationRate"};
     DiscreteVariableArray<Real> dv_segregation_rate_array_;
+    StdVec<std::string> segregation_n_names_ = {"SegNormalDirection"};
+    DiscreteVariableArray<Vecd> dv_segregation_n_array_;
+    StdVec<std::string> segregation_phi_names_ = {"SegregationPhi"};
+    DiscreteVariableArray<Real> dv_segregation_phi_array_;
+    StdVec<std::string> segregation_test_names_ = {"SegregationTest"};
+    DiscreteVariableArray<Real> dv_segregation_test_array_;
 };
 
 template <class DiffusionType, class KernelGradientType, class... Parameters>
@@ -78,6 +87,7 @@ class SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, Ker
         GradientKernel gradient_;
         InterParticleDiffusionCoeff *inter_particle_diffusion_coeff_;
         Real *Vol_;
+        int *indicator_;
         Real smoothing_length_sq_;
     };
 
@@ -85,6 +95,7 @@ class SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, Ker
     KernelGradientType kernel_gradient_;
     ConstantArray<DiffusionType, InterParticleDiffusionCoeff> ca_inter_particle_diffusion_coeff_;
     DiscreteVariable<Real> *dv_Vol_;
+    DiscreteVariable<int> *dv_indicator_;
     Real smoothing_length_sq_;
 };
 
@@ -117,6 +128,8 @@ class SegregationDiffusionRelaxationCK<Contact<InteractionOnly, BoundaryType<Dif
         DataArray<Real> *contact_transfer_;
         GradientKernel gradient_;
         BoundaryKernel boundary_flux_;
+
+        Vecd *contact_seg_n_;
     };
 
   protected:
@@ -124,6 +137,8 @@ class SegregationDiffusionRelaxationCK<Contact<InteractionOnly, BoundaryType<Dif
     StdVec<DiscreteVariableArray<Real> *> contact_dv_transfer_array_;
     StdVec<KernelGradientType *> contact_kernel_gradient_method_;
     StdVec<BoundaryType<DiffusionType> *> contact_boundary_method_;
+
+    StdVec<DiscreteVariable<Vecd> *> dv_contact_seg_n_;
 };
 
 template <template <typename...> class RelationType, class... InteractionParameters>
@@ -198,6 +213,7 @@ class SegregationDiffusionRelaxationCK<RelationType<OneLevel, RungeKutta2ndStage
   public:
     template <typename... Args>
     SegregationDiffusionRelaxationCK(Args &&...args);
+    
     virtual ~SegregationDiffusionRelaxationCK() {};
 
     class UpdateKernel : public BaseDynamicsType::UpdateKernel

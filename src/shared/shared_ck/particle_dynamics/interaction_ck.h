@@ -34,6 +34,8 @@
 #include "neighborhood_ck.hpp"
 #include "relation_ck.hpp"
 
+#include "general_continuum.h"
+
 namespace SPH
 {
 class WithUpdate;
@@ -123,6 +125,18 @@ class Interaction<Contact<Wall, Parameters...>> : public Interaction<Contact<Par
   protected:
     StdVec<DiscreteVariable<Vecd> *> dv_wall_vel_ave_, dv_wall_acc_ave_, dv_wall_n_;
     StdVec<DiscreteVariable<Real> *> dv_wall_Vol_;
+};
+
+template <typename... Parameters>
+class Interaction<Contact<Soil, Parameters...>> : public Interaction<Contact<Parameters...>>
+{
+  public:
+    explicit Interaction(Relation<Contact<Parameters...>> &soil_contact_relation);
+    virtual ~Interaction() {};
+
+  protected:
+    StdVec<DiscreteVariable<Vecd> *> dv_soil_n_;
+    StdVec<DiscreteVariable<Real> *> dv_soil_Vol_;
 };
 } // namespace SPH
 #endif // INTERACTION_CK_H

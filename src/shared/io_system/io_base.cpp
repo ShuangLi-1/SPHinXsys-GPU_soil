@@ -11,7 +11,7 @@ BaseIO::BaseIO(SPHSystem &sph_system)
 //=============================================================================================//
 std::string BaseIO::convertPhysicalTimeToString(Real convertPhysicalTimeToStream)
 {
-    int i_time = int(sv_physical_time_->getValue() * 1.0e6);
+    int i_time = int(sv_physical_time_->getValue() * 1.0e3);  //important
     return padValueWithZeros(i_time);
 }
 //=============================================================================================/

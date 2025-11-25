@@ -15,7 +15,8 @@ class SegregationLocalIsotropicDiffusion : public IsotropicDiffusion
 {
   protected:
     Real diff_max_; /**< maximum diffusion coefficient. */
-    Real *local_diffusivity_, *local_segregation_rate_;
+    Real *local_diffusivity_, *local_segregation_rate_, *segregation_test_;
+    Real *segregation_component_C1_, *segregation_component_C2_, *diffusion_component_C3_, *segregation_component_C1_plus_C2;
 
   public:
     SegregationLocalIsotropicDiffusion(const std::string &diffusion_species_name,
@@ -33,16 +34,42 @@ class SegregationLocalIsotropicDiffusion : public IsotropicDiffusion
     {
         return 0.5 * (local_diffusivity_[index_i] + local_diffusivity_[index_j]);
     };
+    virtual Real getInterParticleDiffusionCoeff(size_t index_i, size_t index_j, Real seg_phi_i, Real seg_phi_j,const Vecd &e_ij)
+    {
+            return 0.5*(local_diffusivity_[index_i]*seg_phi_i + local_diffusivity_[index_j]*seg_phi_j);
+    };
 
     virtual Real getSegregationRate(size_t index_i)
     {
       return local_segregation_rate_[index_i];
     }
 
-        virtual Real getInterParticleSegregationRate(size_t index_i, size_t index_j)
+    virtual Real getInterParticleSegregationRate(size_t index_i, size_t index_j)
     {
       return local_segregation_rate_[index_i] - local_segregation_rate_[index_j];
     }
+
+
+    class InterParticleDiffusionCoeff
+    {
+        Real diff_cf_;
+
+      public:
+        InterParticleDiffusionCoeff() : diff_cf_(0) {};
+        InterParticleDiffusionCoeff(SegregationLocalIsotropicDiffusion &encloser)
+            : diff_cf_(encloser.diff_cf_) {};
+        template <class ExecutionPolicy>
+        InterParticleDiffusionCoeff(const ExecutionPolicy &ex_policy, SegregationLocalIsotropicDiffusion &encloser)
+            : InterParticleDiffusionCoeff(encloser){};
+        Real operator()(size_t index_i, size_t index_j, Real seg_phi_i, Real seg_phi_j,const Vecd &e_ij)
+        {
+            return 0.5*(diff_cf_*seg_phi_i + diff_cf_*seg_phi_j);
+        };
+        Real operator()(size_t index_i, size_t index_j,const Vecd &e_ij)
+        {
+            return 0.5*(diff_cf_ + diff_cf_);
+        };
+    };
 };
 }  //namespace SPH
 

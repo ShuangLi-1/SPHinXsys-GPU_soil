@@ -26,12 +26,34 @@ BasePlasticIntegration<DataDelegationType>::BasePlasticIntegration(BaseRelationT
       strain_tensor_3D_(this->particles_->template registerStateVariable<Mat3d>("StrainTensor3D")),
       stress_rate_3D_(this->particles_->template registerStateVariable<Mat3d>("StressRate3D")),
       strain_rate_3D_(this->particles_->template registerStateVariable<Mat3d>("StrainRate3D")),
-      velocity_gradient_(this->particles_->template registerStateVariable<Matd>("VelocityGradient"))
+      velocity_gradient_(this->particles_->template registerStateVariable<Matd>("VelocityGradient")),
+      test_(this->particles_->template registerStateVariable<Real>("Test")),
+      yita_(this->particles_->template registerStateVariable<Real>("BPVisoosity")),
+      inertial_num_(this->particles_->template registerStateVariable<Real>("InertialNumber")),
+      alpha_each_(this->particles_->template registerStateVariable<Real>("AlphaPhi")),
+      Kc_each_(this->particles_->template registerStateVariable<Real>("KC")),
+      friction_(this->particles_->template registerStateVariable<Real>("Friction")),
+      fluidity_(this->particles_->template registerStateVariable<Real>("Fluidity")),
+      local_fluidity_rate_(this->particles_->template registerStateVariable<Real>("LocalFluidityRate")),
+      nonlocal_fluidity_rate_(this->particles_->template registerStateVariable<Real>("NonLocalFluidityRate"))
 {
+    d_min_ = plastic_continuum_.getMinDiameter();
+    d_max_ = plastic_continuum_.getMaxDiameter();
     this->particles_->template addEvolvingVariable<Mat3d>("StrainTensor3D");
     this->particles_->template addEvolvingVariable<Mat3d>("StressTensor3D");
     this->particles_->template addEvolvingVariable<Mat3d>("StrainRate3D");
     this->particles_->template addEvolvingVariable<Mat3d>("StressRate3D");
+
+    this->particles_->template addEvolvingVariable<Real>("Test");
+    this->particles_->template addEvolvingVariable<Real>("BPVisoosity");
+    this->particles_->template addEvolvingVariable<Real>("InertialNumber");
+    this->particles_->template addEvolvingVariable<Real>("AlphaPhi");
+    this->particles_->template addEvolvingVariable<Real>("KC");
+
+    this->particles_->template addEvolvingVariable<Real>("Friction");
+    this->particles_->template addEvolvingVariable<Real>("Fluidity");
+    this->particles_->template addEvolvingVariable<Real>("LocalFluidityRate");
+    this->particles_->template addEvolvingVariable<Real>("NonLocalFluidityRate");
 }
 //=================================================================================================//
 template <class RiemannSolverType>
@@ -46,6 +68,20 @@ void PlasticIntegration1stHalf<Inner<>, RiemannSolverType>::initialization(size_
     rho_[index_i] += drho_dt_[index_i] * dt * 0.5;
     p_[index_i] = -stress_tensor_3D_[index_i].trace() / 3;
     pos_[index_i] += vel_[index_i] * dt * 0.5;
+
+    /*miu(I)*/
+    // rho_[index_i] += drho_dt_[index_i] * dt * 0.5;
+    // p_[index_i] = -stress_tensor_3D_[index_i].trace() / 3;
+    //p_[index_i] = plastic_continuum_.getPressure(rho_[index_i]);
+    //Mat3d diag_matrix = stress_tensor_3D_[index_i].diagonal().asDiagonal();
+    //Mat3d diag_matrix = stress_tensor_3D_[index_i]- stress_tensor_3D_[index_i].trace()/3.0*Mat3d::Identity();
+    //Mat3d shear_stress_tensor = stress_tensor_3D_[index_i] - diag_matrix;
+    //stress_tensor_3D_[index_i] -= stress_tensor_3D_[index_i].trace()/3.0*Mat3d::Identity();
+    //stress_tensor_3D_[index_i] -= 1.0 * p_[index_i]* Mat3d::Identity();
+    // pos_[index_i] += vel_[index_i] * dt * 0.5;
+
+    /*HBP*/
+    //stress_tensor_3D_[index_i] += 2.0 *yita_[index_i]*strain_rate_3D_[index_i] - 2.0 * strain_rate_3D_[index_i].trace()*Mat3d::Identity()/3.0;
 }
 //=================================================================================================//
 template <class RiemannSolverType>
@@ -176,10 +212,35 @@ void PlasticIntegration2ndHalf<Inner<>, RiemannSolverType>::update(size_t index_
     Mat3d stress_tensor_rate_3D_ = plastic_continuum_.ConstitutiveRelation(velocity_gradient, stress_tensor_3D_[index_i]);
     stress_rate_3D_[index_i] += stress_tensor_rate_3D_;
     stress_tensor_3D_[index_i] += stress_rate_3D_[index_i] * dt;
+
     /*return mapping*/
     stress_tensor_3D_[index_i] = plastic_continuum_.ReturnMapping(stress_tensor_3D_[index_i]);
     strain_rate_3D_[index_i] = 0.5 * (velocity_gradient + velocity_gradient.transpose());
     strain_tensor_3D_[index_i] += strain_rate_3D_[index_i] * dt;
+    
+    /*return mapping with miu(I)*/
+    /*Miu(I)*/
+    // rho_[index_i] += drho_dt_[index_i] * dt * 0.5;
+    // Vol_[index_i] = mass_[index_i] / rho_[index_i];
+    // Mat3d velocity_gradient = upgradeToMat3d(velocity_gradient_[index_i]);
+    // Real alpha_i = alpha_each_[index_i];
+    // Real k_c_i = Kc_each_[index_i];
+    // Mat3d stress_tensor_rate_3D_ = plastic_continuum_.ConstitutiveRelation_withMiuI(velocity_gradient, stress_tensor_3D_[index_i],alpha_i, k_c_i);
+    // stress_rate_3D_[index_i] += stress_tensor_rate_3D_;
+    // stress_tensor_3D_[index_i] += stress_rate_3D_[index_i] * dt;
+
+    // p_[index_i] = plastic_continuum_.getPressure(rho_[index_i]);
+    // stress_tensor_3D_[index_i] -= stress_tensor_3D_[index_i].trace()/3.0*Mat3d::Identity();
+    // stress_tensor_3D_[index_i] -= 1.0 * p_[index_i]* Mat3d::Identity();
+    // stress_tensor_3D_[index_i] = plastic_continuum_.ReturnMapping_withMiuI(stress_tensor_3D_[index_i],alpha_i,k_c_i);
+    // strain_rate_3D_[index_i] = 0.5 * (velocity_gradient + velocity_gradient.transpose());
+    // strain_tensor_3D_[index_i] += strain_rate_3D_[index_i] * dt;
+
+    /*HPB model*/
+    // Mat3d dev_strain_tensor_3D = strain_rate_3D_[index_i] - (strain_rate_3D_[index_i].trace()/3.0 * Mat3d::Identity());
+    // Real frobeniusNormSquared = dev_strain_tensor_3D.squaredNorm();
+    // Real equivalentShearStrainRate = sqrt(2.0* frobeniusNormSquared / 3.0);
+    // yita_[index_i] = plastic_continuum_.getViscosity(p_[index_i],equivalentShearStrainRate, 100.0);
 }
 //=================================================================================================//
 template <class RiemannSolverType>

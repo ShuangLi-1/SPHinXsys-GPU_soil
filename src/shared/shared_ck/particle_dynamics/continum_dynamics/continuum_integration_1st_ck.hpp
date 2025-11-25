@@ -17,13 +17,15 @@ PlasticAcousticStep<BaseInteractionType>::PlasticAcousticStep(DynamicsIdentifier
     dv_strain_tensor_3D_(this->particles_->template registerStateVariableOnly<Mat3d>("StrainTensor3D")),
     dv_stress_rate_3D_(this->particles_->template registerStateVariableOnly<Mat3d>("StressRate3D")),
     dv_strain_rate_3D_(this->particles_->template registerStateVariableOnly<Mat3d>("StrainRate3D")),
-    dv_velocity_gradient_(this->particles_->template registerStateVariableOnly<Matd>("VelocityGradient"))
-{
+    dv_velocity_gradient_(this->particles_->template registerStateVariableOnly<Matd>("VelocityGradient")),
+    dv_yita_(this->particles_->template registerStateVariableOnly<Real>("Viscosity"))
+    {
     this->particles_->template addEvolvingVariable<Mat3d>("StressTensor3D");
     this->particles_->template addEvolvingVariable<Mat3d>("StrainTensor3D");
     this->particles_->template addEvolvingVariable<Mat3d>("StressRate3D");
     this->particles_->template addEvolvingVariable<Mat3d>("StrainRate3D");
-}
+    this->particles_->template addEvolvingVariable<Real>("Viscosity");
+    }
 //=================================================================================================//
 template <class RiemannSolverType, class KernelCorrectionType, typename... Parameters>
 PlasticAcousticStep1stHalf<Inner<OneLevel, RiemannSolverType, KernelCorrectionType, Parameters...>>::
@@ -39,19 +41,27 @@ template <class RiemannSolverType, class KernelCorrectionType, typename... Param
 template <class ExecutionPolicy, class EncloserType>
 PlasticAcousticStep1stHalf<Inner<OneLevel, RiemannSolverType, KernelCorrectionType, Parameters...>>::
     InitializeKernel::InitializeKernel(const ExecutionPolicy &ex_policy, EncloserType &encloser)
-    : rho_(encloser.dv_rho_->DelegatedData(ex_policy)),
+    : plastic_kernel_(encloser.plastic_continuum_),
+      rho_(encloser.dv_rho_->DelegatedData(ex_policy)),
       p_(encloser.dv_p_->DelegatedData(ex_policy)),
       drho_dt_(encloser.dv_drho_dt_->DelegatedData(ex_policy)),
+      yita_(encloser.dv_yita_->DelegatedData(ex_policy)),
       vel_(encloser.dv_vel_->DelegatedData(ex_policy)),
       dpos_(encloser.dv_dpos_->DelegatedData(ex_policy)),
-      stress_tensor_3D_(encloser.dv_stress_tensor_3D_->DelegatedData(ex_policy)) {}
+      stress_tensor_3D_(encloser.dv_stress_tensor_3D_->DelegatedData(ex_policy)),
+      strain_rate_3D_(encloser.dv_strain_rate_3D_->DelegatedData(ex_policy)) {}
 //=================================================================================================//
 template <class RiemannSolverType, class KernelCorrectionType, typename... Parameters>
 void PlasticAcousticStep1stHalf<Inner<OneLevel, RiemannSolverType, KernelCorrectionType, Parameters...>>::
     InitializeKernel::initialize(size_t index_i, Real dt)
 {
     rho_[index_i] += drho_dt_[index_i] * dt * 0.5;
-    p_[index_i] = -stress_tensor_3D_[index_i].trace() / 3;
+
+    //p_[index_i] = -stress_tensor_3D_[index_i].trace() / 3;
+    p_[index_i] = plastic_kernel_.getPressure(rho_[index_i]);
+    stress_tensor_3D_[index_i] = -1.0 * p_[index_i]*Mat3d::Identity();
+    stress_tensor_3D_[index_i] += 2.0 *yita_[index_i]*strain_rate_3D_[index_i] - 2.0 * strain_rate_3D_[index_i].trace()*Mat3d::Identity()/3.0;
+    
     dpos_[index_i] += vel_[index_i] * dt * 0.5;
 }
 //=================================================================================================//

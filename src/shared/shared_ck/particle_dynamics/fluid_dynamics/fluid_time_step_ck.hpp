@@ -34,6 +34,15 @@ AdvectionStepClose::UpdateKernel::
     : pos_(encloser.dv_pos_->DelegatedData(ex_policy)),
       dpos_(encloser.dv_dpos_->DelegatedData(ex_policy)) {}
 //=================================================================================================//
+template <class ExecutionPolicy>
+ShearboxMovement::UpdateKernel::
+    UpdateKernel(const ExecutionPolicy &ex_policy, ShearboxMovement &encloser)
+    : vel_(encloser.dv_vel_->DelegatedData(ex_policy)),
+      pos_(encloser.dv_pos_->DelegatedData(ex_policy)),
+      dpos_(encloser.dv_dpos_->DelegatedData(ex_policy)),
+      pos0_(encloser.dv_pos0_->DelegatedData(ex_policy)),
+      physical_time_(encloser.sv_physical_time_->DelegatedData(ex_policy)) {}
+//=================================================================================================//
 } // namespace fluid_dynamics
 } // namespace SPH
 #endif // FLUID_TIME_STEP_CK_HPP

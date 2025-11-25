@@ -90,7 +90,7 @@ class SegregationParametersCK : public LocalDynamics, public BaseSegregationPara
     };
 
   protected:
-      DiscreteVariable<Real> *dv_diffusivity_, *dv_segregation_rate_;
+      DiscreteVariable<Real> *dv_diffusivity_, *dv_segregation_rate_, *dv_segregation_test_;
 };
 
 

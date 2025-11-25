@@ -31,3 +31,5 @@
 
 #include "smeared_surface_indication.h"
 #include "surface_indication.hpp"
+/*Segregation-related*/
+#include "segregation_surface_indication.hpp"

@@ -1,0 +1,47 @@
+#include "MiuIRheology.hpp"
+namespace SPH
+{
+namespace continuum_dynamics
+{
+//=============================================================================================//
+UpdateMiuIParameters::UpdateMiuIParameters(SPHBody &sph_body, Real scale_factor)
+    : LocalDynamics(sph_body),
+      plastic_continuum_(DynamicCast<PlasticContinuum>(this, sph_body_.getBaseMaterial())),
+      concentration_(particles_->getVariableDataByName<Real>("Concentration")),
+      gama_(particles_->getVariableDataByName<Real>("ShearRate")),
+      segregation_rate_(particles_->getVariableDataByName<Real>("SegregationRate")),
+      diffusion_rate_(particles_->getVariableDataByName<Real>("SegregationDiffusivity")),
+      inertial_num_(particles_->getVariableDataByName<Real>("InertialNumber")),
+      p_(particles_->getVariableDataByName<Real>("Pressure")),
+      rho_(particles_->getVariableDataByName<Real>("Density")),
+      alpha_each_(particles_->getVariableDataByName<Real>("AlphaPhi")),
+      Kc_each_(particles_->getVariableDataByName<Real>("KC")),
+      scale_factor_(scale_factor),x_d_(0.0607), x_v_(0.21)
+      {
+        d_min_ = 0.005;
+        d_max_ = 0.025;
+
+        A_ = 0.108;
+        beta_ = 0.3744;
+        R_ = d_max_ / d_min_;
+        Fai_ = 0.6;
+        C_ = 0.2712;
+        epsilon_ = 2.0957;
+        gravity_ = 9.8;
+      }
+//=============================================================================================//
+void UpdateMiuIParameters::update(size_t index_i, Real dt)
+{
+    Real concentration_i = concentration_[index_i];
+    Real d_avg = concentration_i * d_min_ + (1-concentration_i) * d_max_;
+    Real gama_i = gama_[index_i] * scale_factor_;
+    Real rho_i = rho_[index_i];
+    Real p_i = SMAX(p_[index_i], 1000*10*0.01);
+    
+    inertial_num_[index_i] = d_avg* gama_i/sqrt(p_i/rho_[index_i] + TinyReal);
+    Real miu_i = plastic_continuum_.getViscosityMiuI(inertial_num_[index_i], 0.6,1.0);
+    alpha_each_[index_i] = plastic_continuum_.getDPConstantsA_WithMiu(miu_i);
+    Kc_each_[index_i] = plastic_continuum_.getDPConstantsK_WithMiu(miu_i);
+}
+} // namespace continuum_dynamics
+} // namespace SPH

@@ -32,3 +32,6 @@
 #include "diffusion_dynamics.hpp"
 #include "general_diffusion_reaction_dynamics.h"
 #include "reaction_dynamics.hpp"
+
+/*Segregation model*/
+#include "segregation_diffusion_dynamics.hpp"

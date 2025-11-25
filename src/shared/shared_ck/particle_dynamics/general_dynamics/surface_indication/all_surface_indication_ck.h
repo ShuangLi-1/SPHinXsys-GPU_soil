@@ -32,6 +32,8 @@
 
 
 #include "surface_indication_ck.hpp"
+/*Segregation-related*/
+#include "segregation_surface_indication_ck.hpp"
 
 
 #endif /* B9F4AD2C_8E17_4C49_BCAA_4BD2C6A6951F */

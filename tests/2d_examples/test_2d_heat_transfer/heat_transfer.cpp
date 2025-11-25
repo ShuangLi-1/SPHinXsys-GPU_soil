@@ -8,8 +8,8 @@ using namespace SPH;
 //----------------------------------------------------------------------
 //	Basic geometry parameters and numerical setup.
 //----------------------------------------------------------------------
-Real DL = 2.0;                          /**< Channel length. */
-Real DH = 0.4;                          /**< Channel height. */
+Real DL = 0.01;                          /**< Channel length. */
+Real DH = 0.002;                          /**< Channel height. */
 Real resolution_ref = DH / 25.0;        /**< Global reference resolution. */
 Real DL_sponge = resolution_ref * 20.0; /**< Sponge region to impose inflow condition. */
 /** Boundary width, determined by specific layer of boundary particles. */
@@ -21,8 +21,8 @@ StdVec<Vecd> observation_location = {Vecd(0.0, DH * 0.5)};
 //	Global parameters on the material properties
 //----------------------------------------------------------------------
 std::string diffusion_species_name = "Phi";
-Real diffusion_coeff = 1.0e-3;
-Real rho0_f = 1.0;                  /**< Density. */
+Real diffusion_coeff = 1.43e-7;
+Real rho0_f = 1000.0;                  /**< Density. */
 Real U_f = 1.0;                     /**< Characteristic velocity. */
 Real c_f = 10.0 * U_f;              /**< Speed of sound. */
 Real Re = 100.0;                    /**< Reynolds number100. */
@@ -281,7 +281,7 @@ int main(int ac, char *av[])
     //	Setup for time-stepping control
     //----------------------------------------------------------------------
     Real &physical_time = *sph_system.getSystemVariableDataByName<Real>("PhysicalTime");
-    Real end_time = 10;
+    Real end_time = 20;
     Real output_interval = end_time / 100.0; /**< time stamps for output,WriteToFile*/
     int number_of_iterations = 0;
     int screen_output_interval = 40;

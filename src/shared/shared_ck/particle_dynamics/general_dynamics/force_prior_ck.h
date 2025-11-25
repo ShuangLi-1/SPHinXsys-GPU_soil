@@ -93,5 +93,33 @@ class GravityForceCK : public LocalDynamics, public ForcePriorCK
     DiscreteVariable<Vecd> *dv_pos_;
     DiscreteVariable<Real> *dv_mass_;
 };
+
+template <class GravityType>
+class GravityForceAndPos0CK : public LocalDynamics, public ForcePriorCK
+{
+  public:
+    GravityForceAndPos0CK(SPHBody &sph_body, const GravityType &gravity);
+    virtual ~GravityForceAndPos0CK() {};
+
+    class UpdateKernel : public ForcePriorCK::UpdateKernel
+    {
+      public:
+        template <class ExecutionPolicy, class EncloserType>
+        UpdateKernel(const ExecutionPolicy &ex_policy, EncloserType &encloser);
+        void update(size_t index_i, Real dt = 0.0);
+
+      protected:
+        GravityType gravity_;
+        Real *physical_time_;
+        Vecd *pos_,*pos0_;
+        Real *mass_;
+    };
+
+  protected:
+    const GravityType gravity_;
+    SingularVariable<Real> *sv_physical_time_;
+    DiscreteVariable<Vecd> *dv_pos_, *dv_pos0_;
+    DiscreteVariable<Real> *dv_mass_;
+};
 } // namespace SPH
 #endif // FORCE_PRIOR_CK_H

@@ -2,7 +2,7 @@
 #ifndef SEGREGATION_DIFFUSION_CK_HPP
 #define SEGREGATION_DIFFUSION_CK_HPP
 
-#include "diffusion_dynamics_ck.h"
+#include "segregation_diffusion_ck.h"
 
 namespace SPH
 {
@@ -22,14 +22,23 @@ SegregationDiffusionRelaxationCK<DiffusionType, BaseInteractionType>::
       dv_diffusion_dt_array_(this->particles_->template registerStateVariables<Real>(
           diffusion_species_names_, "ChangeRate")),
       dv_segregation_rate_array_(this->particles_->template getVariablesByName<Real>(
-          segregation_rate_names_, ""))
+          segregation_rate_names_, "")),
+      dv_segregation_n_array_(this->particles_->template getVariablesByName<Vecd>(
+          segregation_n_names_, "")),
+      dv_segregation_phi_array_(this->particles_->template getVariablesByName<Real>(
+          segregation_phi_names_, "")),
+      dv_segregation_test_array_(this->particles_->template getVariablesByName<Real>(
+          segregation_test_names_, ""))
 {
     this->particles_->template addVariableToWrite<Real>(&dv_diffusion_species_array_);
     this->particles_->template addVariableToWrite<Real>(&dv_gradient_species_array_);
     this->particles_->template addEvolvingVariable<Real>(&dv_diffusion_species_array_);
     this->particles_->template addEvolvingVariable<Real>(&dv_gradient_species_array_);
 
-    this->particles_->template addEvolvingVariable<Real>(&dv_segregation_rate_array_);
+    this->particles_->template addVariableToWrite<Real>(&dv_segregation_rate_array_);
+    this->particles_->template addVariableToWrite<Vecd>(&dv_segregation_n_array_);
+    this->particles_->template addVariableToWrite<Real>(&dv_segregation_phi_array_);
+    this->particles_->template addVariableToWrite<Real>(&dv_segregation_test_array_);
 }
 //=================================================================================================//
 template <class DiffusionType, class BaseInteractionType>
@@ -86,6 +95,9 @@ SegregationDiffusionRelaxationCK<DiffusionType, BaseInteractionType>::
       gradient_species_(encloser.dv_gradient_species_array_.DelegatedDataArray(ex_policy)),
       diffusion_dt_(encloser.dv_diffusion_dt_array_.DelegatedDataArray(ex_policy)),
       segregation_rate_(encloser.dv_segregation_rate_array_.DelegatedDataArray(ex_policy)),
+      seg_n_(encloser.dv_segregation_n_array_.DelegatedDataArray(ex_policy)),
+      segregation_phi_(encloser.dv_segregation_phi_array_.DelegatedDataArray(ex_policy)),
+      segregation_test_(encloser.dv_segregation_test_array_.DelegatedDataArray(ex_policy)),
       number_of_species_(encloser.diffusions_.size()) {}
 //=================================================================================================//
 template <class DiffusionType, class KernelGradientType, class... Parameters>
@@ -96,6 +108,7 @@ SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, KernelGra
       kernel_gradient_(this->particles_),
       ca_inter_particle_diffusion_coeff_(this->diffusions_),
       dv_Vol_(this->particles_->template getVariableByName<Real>("VolumetricMeasure")),
+      dv_indicator_(this->particles_->template getVariableByName<int>("Indicator")),
       smoothing_length_sq_(pow(this->sph_adaptation_->ReferenceSmoothingLength(), 2)) {}
 //=================================================================================================//
 template <class DiffusionType, class KernelGradientType, class... Parameters>
@@ -106,6 +119,7 @@ SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, KernelGra
       gradient_(ex_policy, encloser.kernel_gradient_),
       inter_particle_diffusion_coeff_(encloser.ca_inter_particle_diffusion_coeff_.DelegatedData(ex_policy)),
       Vol_(encloser.dv_Vol_->DelegatedData(ex_policy)),
+      indicator_(encloser.dv_indicator_->DelegatedData(ex_policy)),
       smoothing_length_sq_(encloser.smoothing_length_sq_) {}
 //=================================================================================================//
 template <class DiffusionType, class KernelGradientType, class... Parameters>
@@ -116,6 +130,8 @@ void SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, Kern
     {
         Real d_species = 0.0;
         Real A_(1.0),k_(0.0);
+        Real seg_source(0.0), convec_source(0.0), q_source(0.0);
+        Real test(0.0);
         for (UnsignedInt n = this->FirstNeighbor(index_i); n != this->LastNeighbor(index_i); ++n)
         {
             UnsignedInt index_j = this->neighbor_index_[n];
@@ -123,13 +139,17 @@ void SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, Kern
             Vecd e_ij = this->e_ij(index_i, index_j);
             Vecd vec_r_ij = this->vec_r_ij(index_i, index_j);
 
+            /*Convection source*/
             Real surface_area_ij = 2.0 * gradient_(index_i, index_j, dW_ijV_j, e_ij).dot(vec_r_ij) /
                                    (vec_r_ij.squaredNorm() + 0.01 * this->smoothing_length_sq_);
             Real phi_ij = this->gradient_species_[m][index_i] - this->gradient_species_[m][index_j];
-            d_species += inter_particle_diffusion_coeff_[m](index_i, index_j, e_ij) * phi_ij * surface_area_ij;
-
-
-            //Segregation Rate
+            Real seg_phi_i = this->segregation_phi_[m][index_i];
+            Real seg_phi_j = this->segregation_phi_[m][index_j];
+            convec_source += inter_particle_diffusion_coeff_[m](index_i, index_j,seg_phi_i,seg_phi_j, e_ij) * phi_ij * surface_area_ij;
+            test += dW_ijV_j*phi_ij*e_ij.dot(vec_r_ij) /
+                                   (vec_r_ij.squaredNorm() + 0.01 * this->smoothing_length_sq_);
+            //d_species += inter_particle_diffusion_coeff_[m](index_i, index_j,1.0,1.0, e_ij) * phi_ij * surface_area_ij;
+            /*Segregation source*/
             Real segregation_rate_i = this->segregation_rate_[m][index_i];
             Real segregation_rate_ij = this->segregation_rate_[m][index_i] - this->segregation_rate_[m][index_j];
             Real concentration_i =  this->gradient_species_[m][index_i];
@@ -140,9 +160,17 @@ void SegregationDiffusionRelaxationCK<Inner<InteractionOnly, DiffusionType, Kern
             Real term2 = F_i * segregation_rate_ij;
             Vecd gravity_dir = Vecd::Zero();
             gravity_dir[1] = -1.0;
-            d_species -= (term1 + term2) * gradient_(index_i, index_j, dW_ijV_j, e_ij).dot(gravity_dir);
+            seg_source +=  (term1 + term2) * gradient_(index_i, index_j, dW_ijV_j, e_ij).dot(gravity_dir);
+            //d_species += (term1 + term2) * gradient_(index_i, index_j, dW_ijV_j, e_ij).dot(gravity_dir);
+            
+            /*Freesurface source term*/
+            if(indicator_[index_i] == 1 || indicator_[index_i] ==2)
+            {
+                Real func_c_i = - segregation_rate_i * F_i * this->seg_n_[m][index_i].dot(gravity_dir);
+                q_source += 2*func_c_i * this->seg_n_[m][index_i].dot(e_ij)*dW_ijV_j;
+            }
         }
-        this->diffusion_dt_[m][index_i] += d_species;
+        this->diffusion_dt_[m][index_i] += convec_source ;
     }
 }
 //=================================================================================================//
@@ -166,6 +194,9 @@ SegregationDiffusionRelaxationCK<Contact<InteractionOnly, BoundaryType<Diffusion
         contact_boundary_method_.push_back(
             boundary_ptrs_keeper_.template createPtr<BoundaryType<DiffusionType>>(
                 *this, this->contact_particles_[k]));
+
+        dv_contact_seg_n_.push_back(
+            this->contact_particles_[k]->template getVariableByName<Vecd>("SegNormalDirection"));
     }
 }
 //=================================================================================================//
@@ -178,7 +209,8 @@ SegregationDiffusionRelaxationCK<Contact<InteractionOnly, BoundaryType<Diffusion
       contact_Vol_(encloser.dv_contact_Vol_[contact_index]->DelegatedData(ex_policy)),
       contact_transfer_(encloser.contact_dv_transfer_array_[contact_index]->DelegatedDataArray(ex_policy)),
       gradient_(ex_policy, *encloser.contact_kernel_gradient_method_[contact_index]),
-      boundary_flux_(ex_policy, *encloser.contact_boundary_method_[contact_index]) {}
+      boundary_flux_(ex_policy, *encloser.contact_boundary_method_[contact_index]),
+      contact_seg_n_(encloser.dv_contact_seg_n_[contact_index]->DelegatedData(ex_policy)) {}
 //=================================================================================================//
 template <class DiffusionType, template <typename...> class BoundaryType, class KernelGradientType>
 void SegregationDiffusionRelaxationCK<Contact<InteractionOnly, BoundaryType<DiffusionType>, KernelGradientType>>::
@@ -187,17 +219,33 @@ void SegregationDiffusionRelaxationCK<Contact<InteractionOnly, BoundaryType<Diff
     for (UnsignedInt m = 0; m < this->number_of_species_; ++m)
     {
         contact_transfer_[m][index_i] = 0.0;
+        Real neumann_source(0.0);
+        Real csm_source(0.0);
+        Real A_(1.0),k_(0.0);
         for (UnsignedInt n = this->FirstNeighbor(index_i); n != this->LastNeighbor(index_i); ++n)
         {
             UnsignedInt index_j = this->neighbor_index_[n];
             Real dW_ijV_j = this->dW_ij(index_i, index_j) * this->contact_Vol_[index_j];
             Vecd e_ij = this->e_ij(index_i, index_j);
             Vecd vec_r_ij = this->vec_r_ij(index_i, index_j);
-
+            
+            /*Neumann Boundary*/
             Vecd surface_area_ij = 2.0 * gradient_(index_i, index_j, dW_ijV_j, e_ij);
-            contact_transfer_[m][index_i] += boundary_flux_(m, index_i, index_j, e_ij, vec_r_ij).dot(surface_area_ij);
+            neumann_source += boundary_flux_(m, index_i, index_j, e_ij, vec_r_ij).dot(surface_area_ij);
+
+            /*CSM boundary*/
+            Real segregation_rate_i = this->segregation_rate_[m][index_i];
+            Real concentration_i =  this->gradient_species_[m][index_i];
+            Real F_i = A_*concentration_i*(1-concentration_i)*(1-k_*concentration_i);
+            Vecd gravity_dir = Vecd::Zero();
+            gravity_dir[1] = -1.0;
+            Real func_c_i = - segregation_rate_i * F_i * this->seg_n_[m][index_i].dot(gravity_dir);
+            csm_source -= func_c_i * (this->seg_n_[m][index_i] + contact_seg_n_[index_j]).dot(e_ij)*dW_ijV_j;
+
         }
-        this->diffusion_dt_[m][index_i] += contact_transfer_[m][index_i];
+        this->diffusion_dt_[m][index_i] += neumann_source+csm_source;
+
+        this->segregation_test_[m][index_i] = csm_source;
     }
 }
 //=================================================================================================//
@@ -286,8 +334,9 @@ void SegregationDiffusionRelaxationCK<RelationType<OneLevel, RungeKutta2ndStage,
     BaseDynamicsType::UpdateKernel::update(index_i, dt);
     for (UnsignedInt m = 0; m < this->number_of_species_; ++m)
     {
-        this->diffusion_species_[m][index_i] = 0.5 * diffusion_species_s_[m][index_i] +
-                                               0.5 * this->diffusion_species_[m][index_i];
+        Real concentration_i = 0.5 * diffusion_species_s_[m][index_i] +
+                                0.5 * this->diffusion_species_[m][index_i];                               
+        this->diffusion_species_[m][index_i] = concentration_i;
     }
 }
 } //namespace SPH

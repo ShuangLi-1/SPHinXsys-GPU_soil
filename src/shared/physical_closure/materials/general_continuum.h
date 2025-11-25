@@ -67,10 +67,10 @@ class GeneralContinuum : public WeaklyCompressibleFluid
     virtual Matd ConstitutiveRelationShearStress(Matd &velocity_gradient, Matd &shear_stress);
 
 
-    class GeneralContinuumKernel
+    class GeneralContinuumKernel : public WeaklyCompressibleFluid::EosKernel
     {
       public:
-        GeneralContinuumKernel(GeneralContinuum &encloser):
+        GeneralContinuumKernel(GeneralContinuum &encloser) : WeaklyCompressibleFluid::EosKernel(encloser),
         E_(encloser.E_), G_(encloser.G_),K_(encloser.K_),
         nu_(encloser.nu_),contact_stiffness_(encloser.contact_stiffness_),
         rho0_(encloser.rho0_){};
@@ -99,27 +99,68 @@ class PlasticContinuum : public GeneralContinuum
     Real psi_;                          /* dilatancy angle  */
     Real alpha_phi_;                    /* Drucker-Prager's constants */
     Real k_c_;                          /* Drucker-Prager's constants */
+    Real miu_s_, miu_d_, I0_;                 /* Miu(I) constants */
+    Real d_min_, d_max_;
     const Real stress_dimension_ = 3.0; /* plain strain condition */
   public:
-    explicit PlasticContinuum(Real rho0, Real c0, Real youngs_modulus, Real poisson_ratio, Real friction_angle, Real cohesion = 0, Real dilatancy = 0)
+    explicit PlasticContinuum(Real rho0, Real c0, Real youngs_modulus, Real poisson_ratio, Real friction_angle,
+     Real cohesion = 0, Real dilatancy = 0, Real viscosity_s = 0.384, Real viscosity_d = 0.65, Real d_min = 0.002, Real d_max = 0.002)
         : GeneralContinuum(rho0, c0, youngs_modulus, poisson_ratio),
-          c_(cohesion), phi_(friction_angle), psi_(dilatancy), alpha_phi_(0.0), k_c_(0.0)
+          c_(cohesion), phi_(friction_angle), psi_(dilatancy), alpha_phi_(0.0), k_c_(0.0),
+          miu_s_(viscosity_s), miu_d_(viscosity_d), d_min_(d_min), d_max_(d_max)
     {
+        I0_ = 0.279;
         material_type_name_ = "PlasticContinuum";
         alpha_phi_ = getDPConstantsA(friction_angle);
         k_c_ = getDPConstantsK(cohesion, friction_angle);
     };
+    /*7 Parameters*/
     explicit PlasticContinuum(ConstructArgs<Real, Real, Real, Real, Real, Real, Real> args)
     : PlasticContinuum(std::get<0>(args), std::get<1>(args), std::get<2>(args), std::get<3>(args), 
     std::get<4>(args), std::get<5>(args), std::get<6>(args)) {};
+    /*9 Parameters*/
+    explicit PlasticContinuum(ConstructArgs<Real, Real, Real, Real, Real, Real, Real, Real, Real> args)
+    : PlasticContinuum(std::get<0>(args), std::get<1>(args), std::get<2>(args), std::get<3>(args), 
+    std::get<4>(args), std::get<5>(args), std::get<6>(args), std::get<7>(args), std::get<8>(args)) {};
+    /*11 Parameters*/
+    explicit PlasticContinuum(ConstructArgs<Real, Real, Real, Real, Real, Real, Real, Real, Real, Real, Real> args)
+    : PlasticContinuum(std::get<0>(args), std::get<1>(args), std::get<2>(args), std::get<3>(args), 
+    std::get<4>(args), std::get<5>(args), std::get<6>(args), std::get<7>(args), std::get<8>(args),
+    std::get<9>(args),std::get<10>(args)) {};
     virtual ~PlasticContinuum(){};
 
     Real getDPConstantsA(Real friction_angle);
     Real getDPConstantsK(Real cohesion, Real friction_angle);
+    Real getDPConstantsA_WithMiu(Real miu);
+    Real getDPConstantsK_WithMiu(Real miu);
+    Real getDPConstantsK_WithMiu(Real cohesion, Real miu);
     Real getFrictionAngle() { return phi_; };
+    Real getCohesion() { return c_; };
+    Real getStaticViscosity() {return miu_s_; };
+    Real getDynamicViscosity() {return miu_d_; };
+    Real getMaterialConstant() {return I0_; };
+    Real getMinDiameter() {return d_min_; };
+    Real getMaxDiameter() {return d_max_; };
 
     virtual Mat3d ConstitutiveRelation(Mat3d &velocity_gradient, Mat3d &stress_tensor);
     virtual Mat3d ReturnMapping(Mat3d &stress_tensor);
+    virtual Mat3d ConstitutiveRelation_withMiuI(Mat3d &velocity_gradient, Mat3d &stress_tensor, Real alpha_phi_i, Real k_c_i);
+    virtual Mat3d ReturnMapping_withMiuI(Mat3d &stress_tensor, Real alpha_phi_i, Real k_c_i);
+    virtual Mat3d NEW_ReturnMapping_withMiuI(Mat3d &stress_tensor, Real alpha_phi_i, Real k_c_i);
+    virtual Real getViscosity(Real p, Real equivalentShearStrainRate, Real yita_0 = 0.0)
+    {
+      if(equivalentShearStrainRate > TinyReal)
+        return yita_0 + (c_ + p* tan(phi_) )/equivalentShearStrainRate;
+      else
+        return 0.0;
+    }
+    inline Real getViscosityMiuI(Real inertial_number_i, Real miu_s=0.365, Real miu_d=0.572)
+    {
+        Real inertial_number_0=0.279;
+        Real miu = miu_s + (miu_d - miu_s)/(inertial_number_i/inertial_number_0 + 1.0);
+        return miu;
+    }
+
 
 
     class PlasticKernel: public GeneralContinuum::GeneralContinuumKernel
@@ -134,7 +175,16 @@ class PlasticContinuum : public GeneralContinuum
         inline Mat3d ConstitutiveRelation(Mat3d &velocity_gradient, Mat3d &stress_tensor);  
         inline Mat3d ReturnMapping(Mat3d &stress_tensor);
         inline Real getFrictionAngle() { return phi_; };
-
+        inline Real getViscosity(Real p, Real equivalentShearStrainRate)
+        {
+          Real yita_0 = 0.0;
+          Real cohesion = 0.0;
+          Real tan_fai = 0.3;
+          if(equivalentShearStrainRate > TinyReal)
+            return yita_0 + (cohesion + p*tan_fai)/equivalentShearStrainRate;
+          else
+            return 0.0;
+        }
 
       protected:
           Real c_;                            /* cohesion  */

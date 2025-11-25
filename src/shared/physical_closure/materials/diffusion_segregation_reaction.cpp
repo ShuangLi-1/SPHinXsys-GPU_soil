@@ -28,5 +28,19 @@ void SegregationLocalIsotropicDiffusion::initializeLocalParameters(BaseParticles
         "SegregationRate", [&](size_t i) -> Real
         { return diff_max_; });
     base_particles->addVariableToWrite<Real>("SegregationRate");
+    
+    segregation_test_ = base_particles->registerStateVariable<Real>(
+        "SegregationTest");
+    base_particles->addVariableToWrite<Real>("SegregationTest");
+
+    /*Monitors*/
+    segregation_component_C1_ = base_particles->registerStateVariable<Real>("ComponentC1");
+    segregation_component_C2_ = base_particles->registerStateVariable<Real>("ComponentC2");
+    diffusion_component_C3_ = base_particles->registerStateVariable<Real>("ComponentC3");
+    segregation_component_C1_plus_C2 = base_particles->registerStateVariable<Real>("ComponentC1PlusC2");
+    base_particles->addVariableToWrite<Real>("ComponentC1");
+    base_particles->addVariableToWrite<Real>("ComponentC2");
+    base_particles->addVariableToWrite<Real>("ComponentC3");
+    base_particles->addVariableToWrite<Real>("ComponentC1PlusC2");
 }
 }  //namespace SPH

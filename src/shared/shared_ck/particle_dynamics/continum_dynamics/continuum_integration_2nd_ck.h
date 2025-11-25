@@ -85,7 +85,7 @@ class PlasticAcousticStep2ndHalf<Inner<OneLevel, RiemannSolverType, KernelCorrec
 
       protected:
         PlasticKernel plastic_kernel_;
-        Real *rho_, *drho_dt_;
+        Real *rho_, *drho_dt_, *yita_, *p_;
         Matd *velocity_gradient_;
         Mat3d *stress_tensor_3D_,*strain_tensor_3D_,*stress_rate_3D_,*strain_rate_3D_;
     };

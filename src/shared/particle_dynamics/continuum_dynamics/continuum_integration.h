@@ -92,6 +92,11 @@ class BasePlasticIntegration : public fluid_dynamics::BaseIntegration<DataDelega
     PlasticContinuum &plastic_continuum_;
     Mat3d *stress_tensor_3D_, *strain_tensor_3D_, *stress_rate_3D_, *strain_rate_3D_;
     Matd *velocity_gradient_;
+    Real *test_;
+    Real *yita_, *gama_, *inertial_num_, *alpha_each_, *Kc_each_;
+    Real *friction_, *fluidity_, *local_fluidity_rate_, *nonlocal_fluidity_rate_;  /*NonLocal parameters*/
+    /*Scaler*/
+    Real d_min_, d_max_;
 };
 
 template <typename... InteractionTypes>

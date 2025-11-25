@@ -39,3 +39,5 @@
 #include "initilization_dynamics_ck.hpp"
 #include "segregation_dynamics_ck.h"
 #include "segregation_dynamics_ck.hpp"
+#include "continuum_segregation_parameters.h"
+#include "continuum_segregation_parameters.hpp"

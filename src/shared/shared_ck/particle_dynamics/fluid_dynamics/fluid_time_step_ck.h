@@ -196,6 +196,40 @@ class AdvectionStepClose : public LocalDynamics
   protected:
     DiscreteVariable<Vecd> *dv_pos_, *dv_dpos_;
 };
+
+class ShearboxMovement : public LocalDynamics
+{
+  public:
+    explicit ShearboxMovement(SPHBody &sph_body);
+    virtual ~ShearboxMovement() {};
+
+    class UpdateKernel
+    {
+      public:
+        template <class ExecutionPolicy>
+        UpdateKernel(const ExecutionPolicy &ex_policy, ShearboxMovement &encloser);
+
+        void update(size_t index_i, Real dt = 0.0)
+        {
+          Real height = pos0_[index_i][1];
+          Real gama_0_ = 0.577;
+          Real pi_ = 3.1415926;
+          Real omega_ = 2.0 * pi_ / 13;
+          Real time_ = *physical_time_;
+          vel_[index_i][0] = height * gama_0_ * omega_ * cos(omega_ * time_);
+          //dpos_[index_i] = vel_[index_i] * dt;
+          pos_[index_i][0] = pos0_[index_i][0] + height * gama_0_ * sin(omega_ * time_);
+        };
+
+      protected:
+        Vecd *vel_, *pos_, *dpos_, *pos0_;
+        Real *physical_time_;
+    };
+
+  protected:
+    DiscreteVariable<Vecd> *dv_vel_, *dv_pos_, *dv_dpos_, *dv_pos0_;
+    SingularVariable<Real> *sv_physical_time_;
+};
 } // namespace fluid_dynamics
 } // namespace SPH
 #endif // FLUID_TIME_STEP_CK_H

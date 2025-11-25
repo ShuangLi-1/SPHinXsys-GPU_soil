@@ -23,7 +23,8 @@ Real AcousticTimeStep::reduce(size_t index_i, Real dt)
 {
     Real acceleration_scale = 4.0 * h_min_ *
                               (force_[index_i] + force_prior_[index_i]).norm() / mass_[index_i];
-    return SMAX(fluid_.getSoundSpeed(p_[index_i], rho_[index_i]) + vel_[index_i].norm(), acceleration_scale);
+    // return SMAX(fluid_.getSoundSpeed(p_[index_i], rho_[index_i]) + vel_[index_i].norm(), acceleration_scale);
+    return fluid_.getSoundSpeed(p_[index_i], rho_[index_i]) + vel_[index_i].norm();
 }
 //=================================================================================================//
 Real AcousticTimeStep::outputResult(Real reduced_value)

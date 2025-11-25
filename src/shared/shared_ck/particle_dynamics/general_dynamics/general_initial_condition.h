@@ -114,7 +114,7 @@ class ShearBoxDistribution : public ReturnFunction<DataType>
 
         DataType operator()(const Vecd &position) 
         { 
-        if(position[1]>0.05)
+        if(position[1]>0.045)
           return 1.0; 
         else
           return 0.0;

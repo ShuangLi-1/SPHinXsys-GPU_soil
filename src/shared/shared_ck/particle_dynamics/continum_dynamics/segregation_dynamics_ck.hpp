@@ -15,10 +15,12 @@ BaseSegregationParametersCK::UpdateKernel::
 SegregationParametersCK::SegregationParametersCK(SPHBody &sph_body)
     : LocalDynamics(sph_body), BaseSegregationParametersCK(this->particles_),
     dv_diffusivity_(particles_->getVariableByName<Real>("SegregationDiffusivity")),
-    dv_segregation_rate_(particles_->getVariableByName<Real>("SegregationRate"))
+    dv_segregation_rate_(particles_->getVariableByName<Real>("SegregationRate")),
+    dv_segregation_test_(particles_->getVariableByName<Real>("SegregationTest"))
     {
         particles_->addEvolvingVariable<Real>("SegregationDiffusivity");
         particles_->addEvolvingVariable<Real>("SegregationRate");
+        particles_->addEvolvingVariable<Real>("SegregationTest");
     }
 //=================================================================================================//
 template <class ExecutionPolicy, class EncloserType>

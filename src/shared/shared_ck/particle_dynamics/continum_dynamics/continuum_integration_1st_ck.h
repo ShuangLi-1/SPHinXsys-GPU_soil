@@ -49,9 +49,9 @@ class PlasticAcousticStep : public fluid_dynamics::AcousticStep<BaseInteractionT
 
   protected:
     PlasticContinuum &plastic_continuum_;
-    //DiscreteVariable<Vecd> *dv_pos_;
     DiscreteVariable<Mat3d> *dv_stress_tensor_3D_, *dv_strain_tensor_3D_, *dv_stress_rate_3D_, *dv_strain_rate_3D_;
     DiscreteVariable<Matd> *dv_velocity_gradient_;
+    DiscreteVariable<Real> *dv_yita_;
 
 };
 
@@ -62,6 +62,7 @@ template <class RiemannSolverType, class KernelCorrectionType, typename... Param
 class PlasticAcousticStep1stHalf<Inner<OneLevel, RiemannSolverType, KernelCorrectionType, Parameters...>>
     : public PlasticAcousticStep<Interaction<Inner<Parameters...>>>
 {
+    using PlasticKernel = typename PlasticContinuum::PlasticKernel;
     using BaseInteraction = PlasticAcousticStep<Interaction<Inner<Parameters...>>>;
 
   public:
@@ -76,9 +77,10 @@ class PlasticAcousticStep1stHalf<Inner<OneLevel, RiemannSolverType, KernelCorrec
         void initialize(size_t index_i, Real dt = 0.0);
 
       protected:
-        Real *rho_, *p_, *drho_dt_;
+        PlasticKernel plastic_kernel_;
+        Real *rho_, *p_, *drho_dt_, *yita_;
         Vecd *vel_, *dpos_;
-        Mat3d *stress_tensor_3D_;
+        Mat3d *stress_tensor_3D_, *strain_rate_3D_;
     };
 
     class InteractKernel : public BaseInteraction::InteractKernel

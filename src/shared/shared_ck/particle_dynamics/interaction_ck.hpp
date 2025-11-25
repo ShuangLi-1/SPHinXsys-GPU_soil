@@ -95,5 +95,18 @@ Interaction<Contact<Wall, Parameters...>>::
     }
 }
 //=================================================================================================//
+template <typename... Parameters>
+Interaction<Contact<Soil, Parameters...>>::
+    Interaction(Relation<Contact<Parameters...>> &soil_contact_relation)
+    : Interaction<Contact<Parameters...>>(soil_contact_relation)
+{
+    for (size_t k = 0; k != this->contact_particles_.size(); ++k)
+    {
+        PlasticContinuum &plastic_material = DynamicCast<PlasticContinuum>(this, this->contact_particles_[k]->getBaseMaterial());
+        dv_soil_n_.push_back(this->contact_particles_[k]->template getVariableByName<Vecd>("NormalDirection"));
+        dv_soil_Vol_.push_back(this->contact_particles_[k]->template getVariableByName<Real>("VolumetricMeasure"));
+    }
+}
+//=================================================================================================//
 } // namespace SPH
 #endif // INTERACTION_CK_HPP

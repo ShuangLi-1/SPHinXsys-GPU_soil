@@ -68,6 +68,14 @@ AdvectionStepClose::AdvectionStepClose(SPHBody &sph_body)
     : LocalDynamics(sph_body),
       dv_pos_(particles_->getVariableByName<Vecd>("Position")),
       dv_dpos_(particles_->getVariableByName<Vecd>("Displacement")) {}
+      //=================================================================================================//
+ShearboxMovement::ShearboxMovement(SPHBody &sph_body)
+    : LocalDynamics(sph_body),
+      dv_vel_(particles_->getVariableByName<Vecd>("Velocity")),
+      dv_pos_(particles_->getVariableByName<Vecd>("Position")),
+      dv_dpos_(particles_->getVariableByName<Vecd>("Displacement")),
+      dv_pos0_(particles_->getVariableByName<Vecd>("InitialPosition")),
+      sv_physical_time_(sph_system_.getSystemVariableByName<Real>("PhysicalTime"))  {}
 //=================================================================================================//
 } // namespace fluid_dynamics
 } // namespace SPH
