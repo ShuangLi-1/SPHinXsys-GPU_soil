@@ -1,3 +1,50 @@
+# Heterogeneous Landslide Dam Formation SPH Code
+
+## Overview
+
+This repository provides a Smoothed Particle Hydrodynamics (SPH) code for simulating heterogeneous landslide dam formation processes.
+
+The code is developed based on the open-source framework SPHinXsys (https://www.sphinxsys.org/). On top of the original SPHinXsys implementation, the following physical mechanisms have been incorporated:
+
+- Particle-size segregation
+- Nonlocal granular fluidity (NGF) rheology
+
+These extensions enable simulation of heterogeneous grain redistribution and internal structural evolution during landslide dam formation.
+
+---
+
+## Included Cases
+
+This repository includes two benchmark cases and one application case.
+
+### Benchmark Cases (2D)
+
+- **test_2d_shear_box**
+- **test_2d_column_collapse**
+
+These two benchmark cases demonstrate the implementation of particle-size segregation and nonlocal granular fluidity in two-dimensional configurations.
+
+### Application Case (3D)
+
+- **test_3d_segregation_with_ngf**
+
+This three-dimensional case is designed as a reference example for applications.
+
+---
+
+## Dependency
+
+This project is built upon the SPHinXsys framework.
+
+For installation instructions, compilation guidance, and general framework usage, please refer to the official SPHinXsys documentation and repository.
+
+(Original SPHinXsys documentation content is retained below.)
+
+---
+
+## Authors
+Ming Peng (Tongji unviersity), Shuang Li (Tongji unviersity), Chengwei Zhu (Zhejiang Univeristy), et al.
+
 # ![SPHinXsys Logo](assets/logo.png) SPHinXsys
 
 ## A milestone for the heterogeneous parallelism
