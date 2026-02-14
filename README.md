@@ -1,4 +1,4 @@
-# Heterogeneous Landslide Dam Formation SPH Code
+# SPH Model For Heterogeneous Landslide Dam Formation
 
 ## Overview
 
@@ -13,22 +13,27 @@ These extensions enable simulation of heterogeneous grain redistribution and int
 
 ---
 
-## Included Cases
+## Benchmark Cases
 
-This repository includes two benchmark cases and one application case.
+This repository includes benchmark and application cases.
 
-### Benchmark Cases (2D)
+### 2D
 
 - **test_2d_shear_box**
-- **test_2d_column_collapse**
+- **test_2d_column_collapse_lifting**
 
 These two benchmark cases demonstrate the implementation of particle-size segregation and nonlocal granular fluidity in two-dimensional configurations.
 
-### Application Case (3D)
+### 3D
 
 - **test_3d_segregation_with_ngf**
 
-This three-dimensional case is designed as a reference example for applications.
+This three-dimensional case is designed for applications (3D Complex geometry, all model included).
+
+---
+
+## Authors
+Ming Peng (Tongji unviersity), Shuang Li (Tongji unviersity), Chengwei Zhu (Zhejiang Univeristy), et al.
 
 ---
 
@@ -41,9 +46,6 @@ For installation instructions, compilation guidance, and general framework usage
 (Original SPHinXsys documentation content is retained below.)
 
 ---
-
-## Authors
-Ming Peng (Tongji unviersity), Shuang Li (Tongji unviersity), Chengwei Zhu (Zhejiang Univeristy), et al.
 
 # ![SPHinXsys Logo](assets/logo.png) SPHinXsys
 

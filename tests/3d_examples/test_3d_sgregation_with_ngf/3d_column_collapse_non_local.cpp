@@ -5,17 +5,17 @@
  * 			SPH method for modelling granular materials such as soils and sands.
  * @author Shuaihao Zhang and Xiangyu Hu
  */
-#include "damFormation_zhou_non_local.h"
+#include "3d_column_collapse_non_local.h"
 using namespace SPH;
 
 
 int main(int ac, char *av[])
 {
-    //----------------------------------------------------------------------shear
+    //----------------------------------------------------------------------
     //	Build up an SPHSystem.
     //----------------------------------------------------------------------
     BoundingBox system_domain_bounds(Vecd(-0.5 * DL - BW, -DH - BW, -DW - BW), Vecd(DL + BW, DH + BW, DW + BW));
-    SPHSystem sph_system(system_domain_bounds, resolution_ref, 128);
+    SPHSystem sph_system(system_domain_bounds, resolution_ref, 32);
     sph_system.setRunParticleRelaxation(false);
     sph_system.setReloadParticles(true);
     sph_system.handleCommandlineOptions(ac, av)->setIOEnvironment();
@@ -161,9 +161,6 @@ int main(int ac, char *av[])
     write_states.addToWrite<Real>(soil_block, "Fluidity");
     write_states.addToWrite<Real>(soil_block, "LocalFluidityRate");
     write_states.addToWrite<Real>(soil_block, "NonLocalFluidityRate");
-    write_states.addToWrite<Real>(soil_block, "AlphaPhi");
-    write_states.addToWrite<Real>(soil_block, "KC");
-    write_states.addToWrite<Real>(soil_block, "ConcentrationChangeRate");
 
     write_states.addToWrite<int>(wall_boundary, "Indicator");
     write_states.addToWrite<Vecd>(wall_boundary, "SegNormalDirection");
@@ -185,8 +182,6 @@ int main(int ac, char *av[])
     wall_corrected_configuration.exec();
     wall_boundary_indicator.exec();
     wall_update_seg_n_and_phi.exec();
-    update_D_and_V.exec();
-    update_Non_Local_para.exec();
     //----------------------------------------------------------------------
     //	Setup for time-stepping control
     //----------------------------------------------------------------------
@@ -226,20 +221,20 @@ int main(int ac, char *av[])
                 granular_stress_relaxation.exec(dt);
                 granular_density_relaxation.exec(dt);
 
-                // soil_corrected_configuration.exec();
-                // //wall_corrected_configuration.exec();
+                soil_corrected_configuration.exec();
+                wall_corrected_configuration.exec();
 
 
-                // soil_block_indicator.exec();
-                // //wall_boundary_indicator.exec();
+                soil_block_indicator.exec();
+                wall_boundary_indicator.exec();
 
-                // soil_update_seg_n_and_phi.exec();
-                // //wall_update_seg_n_and_phi.exec();
+                soil_update_seg_n_and_phi.exec();
+                wall_update_seg_n_and_phi.exec();
 
-                // update_D_and_V.exec();
-                // update_Non_Local_para.exec();
+                update_D_and_V.exec();
+                update_Non_Local_para.exec();
 
-                // temperature_relaxation.exec(dt);
+                temperature_relaxation.exec(dt);
 
                 ite++;
                 Real diffusion_dt = get_time_step_size.exec();
@@ -250,11 +245,11 @@ int main(int ac, char *av[])
                 physical_time += dt;
 
                 soil_block.updateCellLinkedList();
-                //wall_boundary.updateCellLinkedList();
+                wall_boundary.updateCellLinkedList();
                 soil_block_complex.updateConfiguration();
-                //wall_boundary_complex.updateConfiguration();
+                wall_boundary_complex.updateConfiguration();
         }
-        // write_states.writeToFile();
+        write_states.writeToFile();
         TickCount t2 = TickCount::now();
 
         TickCount t3 = TickCount::now();
@@ -264,7 +259,7 @@ int main(int ac, char *av[])
 
     TickCount::interval_t tt;
     tt = t4 - t1 - interval;
-    write_states.writeToFile();
+
     std::cout << "Total wall time for computation: " << tt.seconds() << " seconds." << std::endl;
     std::cout << "Total physical time for computation: " << physical_time << " seconds." << std::endl;
 

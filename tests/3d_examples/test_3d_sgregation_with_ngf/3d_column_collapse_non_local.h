@@ -2,28 +2,26 @@
 using namespace SPH;
 #define PI 3.1415926
 // general parameters for geometry
-Real radius = 0.1;                                         // Soil column length
-Real height = 0.1;                                         // Soil column height
-Real resolution_ref = 0.01;                         // particle spacing
+Real radius = 0.12;                                         // Soil column length
+Real height = 0.30;                                         // Soil column height
+Real resolution_ref = radius/20;                         // particle spacing
 Real BW = resolution_ref * 4;                              // boundary width
-Real DL = 3.0; // tank length
-Real DH = 3.0;                                   // tank height
-Real DW = 3.0;                                          // tank width
+Real DL = 2 * radius * (1 + 1.24 * height / radius) + 0.1; // tank length
+Real DH = height + 0.02;                                   // tank height
+Real DW = DL;                                              // tank width
 // for material properties
 Real rho0_s = 2040;                                                       // reference density of soil
 Real gravity_g = 9.8;                                                     // gravity force of soil
 Real Youngs_modulus = 5.84e6;                                             // reference Youngs modulus
 Real poisson = 0.3;                                                       // Poisson ratio
 Real c_s = sqrt(Youngs_modulus / (rho0_s * 3 * (1 - 2 * poisson)));
-Real friction_angle = 50.0 * Pi / 180;
+Real friction_angle = 40.0 * Pi / 180;
 Real cohesion = 0.0;
 Real dilatancy = 0.0;
 Real miu_s = tan(30.0 * Pi / 180);
 Real miu_d = tan(50.0 * Pi / 180);
-Real d_min = 0.01 * 1.0;
-Real d_max = 0.05 * 1.0;
-// Real d_min = 0.06*1.0/7.0;
-// Real d_max = 0.06*6.0/7.0;
+Real d_min = 0.01;
+Real d_max = 0.05;
 //Diffusion
 Real shear_period = 1.0;
 std::string diffusion_species_name = "Concentration";
@@ -38,12 +36,18 @@ Real heat_flux = 0.0; //from the Nemann boundary
 std::string soil_full_path_to_file = "./input/SlideBody.stl";  //4+45 有incline
 std::string wall_side_full_path_to_file = "./input/Channel.stl";
 
+
+/** Define the soil body. */
+Real inner_circle_radius = radius;
+int resolution(20);
 class SoilBlock : public ComplexShape
 {
   public:
     explicit SoilBlock(const std::string &shape_name) : ComplexShape(shape_name)
     {
-        add<TriangleMeshShapeSTL>(soil_full_path_to_file, Vecd(0.00, 0.0, 0.0), 1.0);
+        Vecd translation_column(DL / 2, 0.5 * height, DW / 2);
+        add<TriangleMeshShapeCylinder>(SimTK::UnitVec3(0, 1.0, 0), inner_circle_radius,
+                                       0.5 * height, resolution, translation_column);
     }
 };
 //	define the static solid wall boundary shape
@@ -52,7 +56,12 @@ class WallBoundary : public ComplexShape
   public:
     explicit WallBoundary(const std::string &shape_name) : ComplexShape(shape_name)
     {
-        add<TriangleMeshShapeSTL>(wall_side_full_path_to_file, Vecd(0, 0.0, 0), 1.0);
+        Vecd outer_wall_halfsize = Vecd(0.5 * DL + BW, 0.5 * DH + BW, 0.5 * DW + BW);
+        Vecd outer_wall_translation = Vecd(-BW, -BW, -BW) + outer_wall_halfsize;
+        Vecd inner_wall_halfsize = Vecd(0.5 * DL, 0.5 * DH, 0.5 * DW);
+        Vecd inner_wall_translation = inner_wall_halfsize;
+        add<TransformShape<GeometricShapeBox>>(Transform(outer_wall_translation), outer_wall_halfsize);
+        subtract<TransformShape<GeometricShapeBox>>(Transform(inner_wall_translation), inner_wall_halfsize);
     }
 };
 
